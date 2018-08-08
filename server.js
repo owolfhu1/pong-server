@@ -16,7 +16,7 @@ const startGame = (leftPlayer,rightPlayer) => {
 
 io.on('connection', socket => {
 
-    let username = null;
+    let username = '';
     
     socket.on('login', name => {
         if (name in userMap)
@@ -49,6 +49,23 @@ io.on('connection', socket => {
     socket.on('decline', name => {
         if (lobby.indexOf(name) !== -1)
             io.to(userMap[name]).emit('chat', `SYSTEM: ${username} has declined your invitation.`);
+    });
+
+
+    socket.on('disconnect', () => {
+
+        if (username.length > 0) {
+            delete userMap[username];
+
+            let index = lobby.indexOf(username);
+
+            if (index !== -1) {
+                lobby.splice(index,1);
+                for (let i in lobby)
+                    io.to(userMap[lobby[i]]).emit('lobby', lobby);
+            }
+
+        }
     });
 
 });
