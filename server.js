@@ -36,12 +36,13 @@ const makeGame = (leftPlayer,rightPlayer) => {
 };
 
 const startGame = gameObj => {
-  
+    io.to(userMap[gameObj.leftPlayer]).emit('start_game');
+    io.to(userMap[gameObj.rightPlayer]).emit('start_game');
     gameObj.game.start();
     gameObj.interval = setInterval(() => {
         io.to(userMap[gameObj.leftPlayer]).emit('update_game',gameObj.game.getState());
         io.to(userMap[gameObj.rightPlayer]).emit('update_game',gameObj.game.getState());
-    },30);
+    },20);
 };
 
 io.on('connection', socket => {
@@ -95,15 +96,11 @@ io.on('connection', socket => {
         let gameObj = gameMap[gameIdMap[username]];
         if (!gameObj.interval)
             startGame(gameObj);
-        
     });
 
     socket.on('disconnect', () => {
-
         if (username.length > 0) {
             delete userMap[username];
-            
-            
             if (username in gameIdMap) {
         
                 let gameObj = gameMap[gameIdMap[username]];
@@ -118,22 +115,15 @@ io.on('connection', socket => {
                 delete gameIdMap[gameObj.rightPlayer];
                 delete gameMap[gameObj.id];
             }
-            
-            
             let index = lobby.indexOf(username);
             if (index !== -1) {
                 lobby.splice(index,1);
                 for (let i in lobby)
                     io.to(userMap[lobby[i]]).emit('lobby', lobby);
             }
-            
-            
-
         }
     });
 
 });
-
-
 
 server.listen(port, () => console.log(`Listening on port ${port}`));
