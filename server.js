@@ -41,7 +41,7 @@ const startGame = gameObj => {
     gameObj.interval = setInterval(() => {
         io.to(userMap[gameObj.leftPlayer]).emit('update_game',gameObj.game.getState());
         io.to(userMap[gameObj.rightPlayer]).emit('update_game',gameObj.game.getState());
-    },100);
+    },30);
 };
 
 io.on('connection', socket => {
