@@ -20,7 +20,7 @@ function Game(leftSocketEmit, rightSocketEmit) {
         return {left, right, x, y};
     };
     
-    const stop = () => {
+    this.stop = () => {
         for (let i in state.intervals)
             clearInterval(state.intervals[i]);
         state.intervals = [];
@@ -33,7 +33,7 @@ function Game(leftSocketEmit, rightSocketEmit) {
     };
     
     this.moveRightPaddle = string => {
-        if (string === 'ArrowUp' && state.right < 300)
+        if (string === 'ArrowUp')
             state.right = state.right + paddleIncrement();
         else if (state.right > 0)
             state.right = state.right - paddleIncrement();
@@ -41,7 +41,7 @@ function Game(leftSocketEmit, rightSocketEmit) {
     };
     
     this.moveLeftPaddle = string => {
-        if (string === 'ArrowUp' && state.left < 300)
+        if (string === 'ArrowUp')
             state.left = state.left + paddleIncrement();
         else if (state.left > 0)
             state.left = state.left - paddleIncrement();
@@ -67,7 +67,7 @@ function Game(leftSocketEmit, rightSocketEmit) {
         }
         if (state.x < 0) {
             if (state.y < state.left - 4 || state.y > state.left + 100)
-                stop();
+                this.stop();
             else {
                 let spot = state.y - state.left;
                 state.direction.y = spot < 20 ? -3 : spot > 80 ? 3 : state.direction.y > 0 ? 1 : -1;
@@ -76,7 +76,7 @@ function Game(leftSocketEmit, rightSocketEmit) {
         }
         if (state.x > 600) {
             if (state.y < state.right - 4 || state.y > state.right + 100)
-                stop();
+                this.stop();
             else {
                 let spot = state.y - state.right;
                 state.direction.y = spot < 20 ? -3 : spot > 80 ? 3 : state.direction.y > 0 ? 1 : -1;

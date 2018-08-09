@@ -102,14 +102,32 @@ io.on('connection', socket => {
 
         if (username.length > 0) {
             delete userMap[username];
-
+            
+            
+            if (username in gameIdMap) {
+        
+                let gameObj = gameMap[gameIdMap[username]];
+                gameObj.game.stop();
+                if (gameObj.interval)
+                    clearInterval(gameObj.interval);
+                io.to(userMap[gameObj.leftPlayer]).emit('login', {username:gameObj.leftPlayer, lobby, state:'lobby'});
+                io.to(userMap[gameObj.rightPlayer]).emit('login', {username:gameObj.rightPlayer, lobby, state:'lobby'});
+                lobby.push(gameObj.leftPlayer);
+                lobby.push(gameObj.rightPlayer);
+                delete gameIdMap[gameObj.leftPlayer];
+                delete gameIdMap[gameObj.rightPlayer];
+                delete gameMap[gameObj.id];
+            }
+            
+            
             let index = lobby.indexOf(username);
-
             if (index !== -1) {
                 lobby.splice(index,1);
                 for (let i in lobby)
                     io.to(userMap[lobby[i]]).emit('lobby', lobby);
             }
+            
+            
 
         }
     });
