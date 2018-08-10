@@ -75,12 +75,14 @@ const updateScores = (winner,loser,callback) => {
                     loser : newLoserRating,
                 });
 
-                dbo.collection('users').updateOne({name:winner},{score:newWinnerRating},(err,res) => {if (err) throw err;});
+                dbo.collection('users').updateOne({name:winner},{score:newWinnerRating},(err,res) => {
+                    if (err) throw err;
+                });
                 dbo.collection('users').updateOne({name:loser},{score:newLoserRating},(err,res) => {
                     if (err) throw err;
-                    db.close();
-                })
+                });
 
+                setTimeout(() => db.close(),1000)
             });
 
         });
