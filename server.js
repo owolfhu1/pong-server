@@ -24,8 +24,36 @@ function GameObj(game,leftPlayer,rightPlayer) {
     io.to(userMap[rightPlayer]).emit('start_game');
 }
 
+const updateScores = (winner,loser) => {
+    Users.updateScores(winner,loser, scores => {
+        let msg1 = `SYSTEM: ${winner} has defeated ${loser}.`;
+        let msg2 = `${winner} new score is ${scores.winner}`;
+        let msg3 = `${loser} new score is ${scores.loser}`;
+        for (let i in lobby) {
+            io.to(userMap[lobby[i]]).emit('chat', msg1);
+            io.to(userMap[lobby[i]]).emit('chat', msg2);
+            io.to(userMap[lobby[i]]).emit('chat', msg3);
+        }
+    })
+};
+
 const makeGame = (leftPlayer,rightPlayer) => {
-    let game = new Game(io.to(userMap[leftPlayer]).emit,io.to(userMap[rightPlayer]).emit);
+    let game = new Game(who => {
+        let gameObj = gameMap[gameIdMap[leftPlayer]];
+        clearInterval(gameObj.interval);
+        io.to(userMap[leftPlayer]).emit('login', {username:leftPlayer, lobby, state:'lobby'});
+        io.to(userMap[rightPlayer]).emit('login', {username:rightPlayer, lobby, state:'lobby'});
+        lobby.push(leftPlayer);
+        lobby.push(rightPlayer);
+        for (let i in lobby)
+            io.to(userMap[lobby[i]]).emit('lobby', lobby);
+        delete gameIdMap[leftPlayer];
+        delete gameIdMap[rightPlayer];
+        delete gameMap[gameObj.id];
+        if (who === 'left')
+            updateScores(rightPlayer,leftPlayer);
+        else updateScores(leftPlayer,rightPlayer);
+    });
     let gameObj = new GameObj(game,leftPlayer,rightPlayer);
     gameIdMap[leftPlayer] = gameObj.id;
     gameIdMap[rightPlayer] = gameObj.id;
@@ -132,7 +160,6 @@ io.on('connection', socket => {
         if (username.length > 0) {
             delete userMap[username];
             if (username in gameIdMap) {
-        
                 let gameObj = gameMap[gameIdMap[username]];
                 gameObj.game.stop();
                 if (gameObj.interval)
@@ -141,6 +168,9 @@ io.on('connection', socket => {
                 io.to(userMap[gameObj.rightPlayer]).emit('login', {username:gameObj.rightPlayer, lobby, state:'lobby'});
                 lobby.push(gameObj.leftPlayer);
                 lobby.push(gameObj.rightPlayer);
+                if (gameObj.leftPlayer === username)
+                    updateScores(gameObj.leftPlayer,gameObj.rightPlayer);
+                else updateScores(gameObj.rightPlayer,gameObj.leftPlayer);
                 delete gameIdMap[gameObj.leftPlayer];
                 delete gameIdMap[gameObj.rightPlayer];
                 delete gameMap[gameObj.id];

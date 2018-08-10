@@ -1,7 +1,7 @@
 
 
 
-function Game(leftSocketEmit, rightSocketEmit) {
+function Game(callback) {
 
     const state = {
         direction : {
@@ -20,10 +20,11 @@ function Game(leftSocketEmit, rightSocketEmit) {
         return {left, right, x, y};
     };
     
-    this.stop = () => {
+    this.stop = who => {
         for (let i in state.intervals)
             clearInterval(state.intervals[i]);
         state.intervals = [];
+        callback(who);
     };
     
     const paddleIncrement = () => {
@@ -67,7 +68,7 @@ function Game(leftSocketEmit, rightSocketEmit) {
         }
         if (state.x < 0) {
             if (state.y < state.left - 4 || state.y > state.left + 100)
-                this.stop();
+                this.stop('left');
             else {
                 let spot = state.y - state.left;
                 state.direction.y = spot < 20 ? -3 : spot > 80 ? 3 : state.direction.y > 0 ? 1 : -1;
@@ -76,7 +77,7 @@ function Game(leftSocketEmit, rightSocketEmit) {
         }
         if (state.x > 600) {
             if (state.y < state.right - 4 || state.y > state.right + 100)
-                this.stop();
+                this.stop('right');
             else {
                 let spot = state.y - state.right;
                 state.direction.y = spot < 20 ? -3 : spot > 80 ? 3 : state.direction.y > 0 ? 1 : -1;
