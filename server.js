@@ -7,6 +7,7 @@ const server = http.createServer(app);
 const io = socketIO(server);
 
 const Game = require('./Game');
+const Users = require('./mongodb/users');
 
 const userMap = {}; //{username : socketId}
 const lobby = []; //[userInLobby,secondUserInLobby, ...]
@@ -45,22 +46,51 @@ const startGame = gameObj => {
     },20);
 };
 
+const hash = s => {
+    let a = 1;
+    let c = 0;
+    let h, o;
+    if (s) {
+        a = 0;
+        for (h = s.length - 1; h >= 0; h--) {
+            o = s.charCodeAt(h);
+            a = (a<<6&268435455) + o + (o<<14);
+            c = a & 266338304;
+            a = c!==0?a^c>>21:a;
+        }
+    }
+    return String(a);
+};
+
 io.on('connection', socket => {
 
     let username = '';
-    
-    socket.on('login', name => {
-        if (name in userMap)
-            socket.emit('login_error', name + ' is already logged in');
-        else if (!(new RegExp('^[a-zA-Z]{3,10}$').test(name)))
-            socket.emit('login_error', 'invalid name, must be 3-10 letters only');
+
+    socket.on('register', data => {
+        if (!(new RegExp('^[a-zA-Z]{3,10}$').test(data.name)))
+            socket.emit('login_msg', 'invalid name, must be 3-10 letters only');
         else {
-            userMap[name] = socket.id;
-            lobby.push(name);
-            username = name;
-            socket.emit('login', {username,lobby,state:'lobby'});
-            for (let i in lobby)
-                io.to(userMap[lobby[i]]).emit('lobby', lobby);
+            data.pass = hash(data.pass);
+            Users.register(data.name, data.pass, result => socket.emit('register', result));
+        }
+    });
+
+    socket.on('login', data => {
+        if (data.name in userMap)
+            socket.emit('login_msg', data.name + ' is already logged in');
+        else {
+            data.pass = hash(data.pass);
+            Users.login(data.name, data.pass, bool => {
+                if (bool) {
+                    userMap[data.name] = socket.id;
+                    lobby.push(data.name);
+                    username = data.name;
+                    socket.emit('login', {username,lobby,state:'lobby'});
+                    for (let i in lobby)
+                        io.to(userMap[lobby[i]]).emit('lobby', lobby);
+                } else
+                    socket.emit('login_msg', 'Bad login data provided.');
+            });
         }
     });
     
