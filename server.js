@@ -34,7 +34,8 @@ const updateScores = (winner,loser) => {
             io.to(userMap[lobby[i]]).emit('chat', msg2);
             io.to(userMap[lobby[i]]).emit('chat', msg3);
         }
-    })
+    });
+    Users.recordGame(winner,loser);
 };
 
 const makeGame = (leftPlayer,rightPlayer) => {
@@ -125,7 +126,16 @@ io.on('connection', socket => {
     socket.on('request_game', name => io.to(userMap[name]).emit('request', username));
     
     socket.on('chat', text => {
-        for (let i in lobby)
+        
+        if(text === '/topThree')
+            Users.topThree(msgs => {
+                socket.emit('chat',msgs.one);
+                if (msgs.two) socket.emit('chat',msgs.two);
+                if (msgs.three) socket.emit('chat',msgs.three);
+            });
+        else if(text === '/myScore')
+            Users.getMyScore(username,msg => socket.emit('chat',msg));
+        else for (let i in lobby)
             io.to(userMap[lobby[i]]).emit('chat', username + ': ' + text);
     });
     

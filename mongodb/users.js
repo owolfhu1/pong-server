@@ -3,10 +3,12 @@ const URL = "mongodb://orion:pass12@ds151202.mlab.com:51202/heroku_vds87lfj";
 
 const K_VALUE = 50;
 
+const DATABASE = 'heroku_vds87lfj';
+
 const register = (username, passHash, callback) => {
     MongoClient.connect(URL,(err, db) => {
         if (err) throw err;
-        let dbo = db.db('heroku_vds87lfj');
+        let dbo = db.db(DATABASE);
         dbo.collection('users').findOne({name: username}, function (err, result) {
             if (err) throw err;
             if (!result) {
@@ -16,6 +18,12 @@ const register = (username, passHash, callback) => {
                     score : 1500,
                 }, (err,res) => {
                     if (err) throw err;
+                    dbo.collection('games').insertOne({
+                        name : username,
+                        wins : []
+                    }, (err,res) => {
+                        if (err) throw err;
+                    });
                     callback(true);
                     db.close();
                 });
@@ -30,7 +38,7 @@ const register = (username, passHash, callback) => {
 const login = (username, passHash, callback) => {
     MongoClient.connect(URL,(err, db) => {
         if (err) throw err;
-        let dbo = db.db('heroku_vds87lfj');
+        let dbo = db.db(DATABASE);
         dbo.collection('users').findOne({
             name : username,
         }, (err, res) => {
@@ -53,7 +61,7 @@ const updateScores = (loser,winner,callback) => {
     MongoClient.connect(URL, (err,db) => {
         if (err) throw err;
 
-        let dbo = db.db('heroku_vds87lfj');
+        let dbo = db.db(DATABASE);
         dbo.collection('users').findOne({
             name : winner,
         }, (err,res) => {
@@ -72,8 +80,10 @@ const updateScores = (loser,winner,callback) => {
                 let newLoserRating = oldScoreLoser + K_VALUE *(1 - loserExpected);
 
                 callback({
-                    winner : Math.floor(newWinnerRating),
-                    loser : Math.floor(newLoserRating),
+                    // winner : Math.floor(newWinnerRating), //TODO fix this
+                    // loser : Math.floor(newLoserRating),
+                    winner : Math.floor(newLoserRating),
+                    loser : Math.floor(newWinnerRating),
                 });
 
                 dbo.collection('users').updateOne({name:winner},{$set:{score:newWinnerRating}},(err,res) => {
@@ -92,5 +102,49 @@ const updateScores = (loser,winner,callback) => {
 
 };
 
-module.exports = {login,register,updateScores};
+const topThree = callback => {
+    MongoClient.connect(URL, (err,db) => {
+        if (err) throw err;
+        let dbo = db.db(DATABASE);
+        dbo.collection('users').find({}).toArray((err, res) => {
+            if (err) throw err;
+            res.sort((b,a) => a.score - b.score);
+            let one = res.length > 0 ? `1) ${res[0].name} with ${Math.floor(res[0].score)} points` : null;
+            let two = res.length > 1 ? `2) ${res[1].name} with ${Math.floor(res[1].score)} points` : null;
+            let three = res.length > 2 ? `3) ${res[2].name} with ${Math.floor(res[2].score)} points` : null;
+            callback({one,two,three});
+            db.close();
+        });
+    });
+};
+
+const getMyScore = (username,callback) => {
+    MongoClient.connect(URL, (err,db) => {
+        if (err) throw err;
+        let dbo = db.db(DATABASE);
+        dbo.collection('users').find({}).toArray((err, res) => {
+            res.sort((b,a) => a.score - b.score);
+            for (let i = 0; i < res.length; i++)
+                if (res[i].name === username)
+                    callback(`Rank ${i+1} with ${Math.floor(res[i].score)} points`);
+            db.close();
+        });
+    });
+};
+
+const recordGame = (winner,loser) => {
+    MongoClient.connect(URL, (err,db) => {
+        if (err) throw err;
+        let dbo = db.db(DATABASE);
+        dbo.collection('games').findOne({name:winner}, (err,res) => {
+            if (err) throw err;
+            res.wins.push(loser);
+            dbo.collection('games').updateOne({name:winner},{$set:{wins:res.wins}},(err,res) => {
+                if (err) throw err;
+            });
+        });
+    });
+};
+
+module.exports = {login,register,updateScores,topThree,getMyScore,recordGame};
 
