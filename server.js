@@ -169,8 +169,8 @@ io.on('connection', socket => {
                 lobby.push(gameObj.leftPlayer);
                 lobby.push(gameObj.rightPlayer);
                 if (gameObj.leftPlayer === username)
-                    updateScores(gameObj.leftPlayer,gameObj.rightPlayer);
-                else updateScores(gameObj.rightPlayer,gameObj.leftPlayer);
+                    updateScores(gameObj.rightPlayer,gameObj.leftPlayer);
+                else updateScores(gameObj.leftPlayer,gameObj.rightPlayer);
                 delete gameIdMap[gameObj.leftPlayer];
                 delete gameIdMap[gameObj.rightPlayer];
                 delete gameMap[gameObj.id];

@@ -1,7 +1,7 @@
 const MongoClient = require('mongodb').MongoClient;
 const URL = "mongodb://orion:pass12@ds151202.mlab.com:51202/heroku_vds87lfj";
 
-const K_VALUE = 20;
+const K_VALUE = 50;
 
 const register = (username, passHash, callback) => {
     MongoClient.connect(URL,(err, db) => {
@@ -44,7 +44,8 @@ const login = (username, passHash, callback) => {
     });
 };
 
-const updateScores = (winner,loser,callback) => {
+//todo: figure out why this is reversed(should be winner,loser, but reversed because not working as planned)
+const updateScores = (loser,winner,callback) => {
 
     let oldScoreWinner;
     let oldScoreLoser;
@@ -71,14 +72,14 @@ const updateScores = (winner,loser,callback) => {
                 let newLoserRating = oldScoreLoser + K_VALUE *(1 - loserExpected);
 
                 callback({
-                    winner : newWinnerRating,
-                    loser : newLoserRating,
+                    winner : Math.floor(newWinnerRating),
+                    loser : Math.floor(newLoserRating),
                 });
 
-                dbo.collection('users').updateOne({name:winner},{score:newWinnerRating},(err,res) => {
+                dbo.collection('users').updateOne({name:winner},{$set:{score:newWinnerRating}},(err,res) => {
                     if (err) throw err;
                 });
-                dbo.collection('users').updateOne({name:loser},{score:newLoserRating},(err,res) => {
+                dbo.collection('users').updateOne({name:loser},{$set:{score:newLoserRating}},(err,res) => {
                     if (err) throw err;
                 });
 
