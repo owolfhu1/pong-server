@@ -27,8 +27,8 @@ function GameObj(game,leftPlayer,rightPlayer) {
 const updateScores = (winner,loser) => {
     Users.updateScores(winner,loser, scores => {
         let msg1 = `SYSTEM: ${winner} has defeated ${loser}.`;
-        let msg2 = `${winner} new score is ${scores.winner}`;
-        let msg3 = `${loser} new score is ${scores.loser}`;
+        let msg2 = `${winner}'s new score is ${scores.winner}`;
+        let msg3 = `${loser}'s new score is ${scores.loser}`;
         for (let i in lobby) {
             io.to(userMap[lobby[i]]).emit('chat', msg1);
             io.to(userMap[lobby[i]]).emit('chat', msg2);
@@ -123,61 +123,74 @@ io.on('connection', socket => {
         }
     });
     
-    socket.on('request_game', name => io.to(userMap[name]).emit('request', username));
+    socket.on('request_game', name => {
+        if (username) {
+            io.to(userMap[name]).emit('request', username);
+        }
+    });
     
     socket.on('chat', text => {
-        
-        if(text === '/topThree')
-            Users.topThree(msgs => {
-                socket.emit('chat',msgs.one);
-                if (msgs.two) socket.emit('chat',msgs.two);
-                if (msgs.three) socket.emit('chat',msgs.three);
-            });
-        else if(text === '/myScore')
-            Users.getMyScore(username,msg => socket.emit('chat',msg));
-        else for (let i in lobby)
-            io.to(userMap[lobby[i]]).emit('chat', username + ': ' + text);
+        if (username) {
+            if (text === '/topThree')
+                Users.topThree(msgs => {
+                    socket.emit('chat', msgs.one);
+                    if (msgs.two) socket.emit('chat', msgs.two);
+                    if (msgs.three) socket.emit('chat', msgs.three);
+                });
+            else if (text === '/myScore')
+                Users.getMyScore(username, msg => socket.emit('chat', msg));
+            else for (let i in lobby)
+                    io.to(userMap[lobby[i]]).emit('chat', username + ': ' + text);
+        }
     });
     
     socket.on('accept', name => {
-        if (lobby.indexOf(name) !== -1)
-            makeGame(username,name);
-        else socket.emit('chat', `SYSTEM: ${name} is no longer in the lobby.`);
+        if (username) {
+            if (lobby.indexOf(name) !== -1)
+                makeGame(username, name);
+            else socket.emit('chat', `SYSTEM: ${name} is no longer in the lobby.`);
+        }
     });
     
     socket.on('decline', name => {
-        if (lobby.indexOf(name) !== -1)
-            io.to(userMap[name]).emit('chat', `SYSTEM: ${username} has declined your invitation.`);
+        if (username) {
+            if (lobby.indexOf(name) !== -1)
+                io.to(userMap[name]).emit('chat', `SYSTEM: ${username} has declined your invitation.`);
+        }
     });
 
     socket.on('move_paddle', string => {
-        let gameObj = gameMap[gameIdMap[username]];
-        if (gameObj.leftPlayer === username)
-            gameObj.game.moveLeftPaddle(string);
-        else
-            gameObj.game.moveRightPaddle(string);
-        io.to(userMap[gameObj.leftPlayer]).emit('update_game', gameObj.game.getState());
-        io.to(userMap[gameObj.rightPlayer]).emit('update_game', gameObj.game.getState());
+        if (username) {
+            let gameObj = gameMap[gameIdMap[username]];
+            if (gameObj.leftPlayer === username)
+                gameObj.game.moveLeftPaddle(string);
+            else
+                gameObj.game.moveRightPaddle(string);
+            io.to(userMap[gameObj.leftPlayer]).emit('update_game', gameObj.game.getState());
+            io.to(userMap[gameObj.rightPlayer]).emit('update_game', gameObj.game.getState());
+        }
     });
     
     socket.on('start_game', () => {
-        let gameObj = gameMap[gameIdMap[username]];
-        if (!gameObj.interval)
-            startGame(gameObj);
+        if (username) {
+            let gameObj = gameMap[gameIdMap[username]];
+            if (!gameObj.interval)
+                startGame(gameObj);
+        }
     });
 
     socket.on('disconnect', () => {
-        if (username.length > 0) {
+        if (username) {
             delete userMap[username];
             if (username in gameIdMap) {
                 let gameObj = gameMap[gameIdMap[username]];
                 gameObj.game.stop();
                 if (gameObj.interval)
                     clearInterval(gameObj.interval);
-                io.to(userMap[gameObj.leftPlayer]).emit('login', {username:gameObj.leftPlayer, lobby, state:'lobby'});
-                io.to(userMap[gameObj.rightPlayer]).emit('login', {username:gameObj.rightPlayer, lobby, state:'lobby'});
-                lobby.push(gameObj.leftPlayer);
-                lobby.push(gameObj.rightPlayer);
+                //io.to(userMap[gameObj.leftPlayer]).emit('login', {username:gameObj.leftPlayer, lobby, state:'lobby'});
+                //io.to(userMap[gameObj.rightPlayer]).emit('login', {username:gameObj.rightPlayer, lobby, state:'lobby'});
+                //lobby.push(gameObj.leftPlayer);
+                //lobby.push(gameObj.rightPlayer);
                 if (gameObj.leftPlayer === username)
                     updateScores(gameObj.rightPlayer,gameObj.leftPlayer);
                 else updateScores(gameObj.leftPlayer,gameObj.rightPlayer);
