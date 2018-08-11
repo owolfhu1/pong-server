@@ -97,7 +97,7 @@ io.on('connection', socket => {
 
     socket.on('register', data => {
         if (!(new RegExp('^[a-zA-Z]{3,10}$').test(data.name)))
-            socket.emit('login_msg', 'invalid name, must be 3-10 letters only');
+            socket.emit('login_msg', 'invalid username, must be 3-10 letters only');
         else {
             data.pass = hash(data.pass);
             Users.register(data.name, data.pass, result => socket.emit('register', result));

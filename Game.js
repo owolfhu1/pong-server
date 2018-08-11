@@ -67,20 +67,20 @@ function Game(callback) {
             state.y = 400 + state.direction.y;
         }
         if (state.x < 0) {
-            if (state.y < state.left - 10 || state.y > state.left + 110)
+            if (state.y < state.left - 10 || state.y > state.left + 111)
                 this.stop('left');
             else {
                 let spot = state.y - state.left;
-                state.direction.y = spot < 10 ? -3 : spot > 100 ? 3 : state.direction.y > 0 ? 1 : -1;
+                state.direction.y = spot < 15 ? -3 : spot > 98 ? 3 : state.direction.y > 0 ? 1 : -1;
                 flipX();
             }
         }
         if (state.x > 600) {
-            if (state.y < state.right - 10 || state.y > state.right + 110)
+            if (state.y < state.right - 10 || state.y > state.right + 111)
                 this.stop('right');
             else {
                 let spot = state.y - state.right;
-                state.direction.y = spot < 10 ? -3 : spot > 100 ? 3 : state.direction.y > 0 ? 1 : -1;
+                state.direction.y = spot < 15 ? -3 : spot > 98 ? 3 : state.direction.y > 0 ? 1 : -1;
                 flipX();
             }
         }
