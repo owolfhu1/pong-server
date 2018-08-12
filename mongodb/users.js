@@ -18,12 +18,12 @@ const register = (username, passHash, callback) => {
                     score : 1500,
                 }, (err,res) => {
                     if (err) throw err;
-                    dbo.collection('games').insertOne({
-                        name : username,
-                        wins : []
-                    }, (err,res) => {
-                        if (err) throw err;
-                    });
+                    // dbo.collection('games').insertOne({
+                    //     name : username,
+                    //     wins : []
+                    // }, (err,res) => {
+                    //     if (err) throw err;
+                    // });
                     callback(true);
                     db.close();
                 });
@@ -62,6 +62,11 @@ const updateScores = (loser,winner,callback) => {
         if (err) throw err;
 
         let dbo = db.db(DATABASE);
+    
+        dbo.collection('games').insertOne({winner,loser}, (err,res) => {
+            if (err) throw err;
+        });
+        
         dbo.collection('users').findOne({
             name : winner,
         }, (err,res) => {
