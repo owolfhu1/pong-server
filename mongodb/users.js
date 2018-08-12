@@ -62,11 +62,6 @@ const updateScores = (loser,winner,callback) => {
         if (err) throw err;
 
         let dbo = db.db(DATABASE);
-    
-        dbo.collection('games').insertOne({winner,loser}, (err,res) => {
-            if (err) throw err;
-        });
-        
         dbo.collection('users').findOne({
             name : winner,
         }, (err,res) => {
@@ -141,12 +136,8 @@ const recordGame = (winner,loser) => {
     MongoClient.connect(URL, (err,db) => {
         if (err) throw err;
         let dbo = db.db(DATABASE);
-        dbo.collection('games').findOne({name:winner}, (err,res) => {
+        dbo.collection('games').insertOne({winner,loser}, (err,res) => {
             if (err) throw err;
-            res.wins.push(loser);
-            dbo.collection('games').updateOne({name:winner},{$set:{wins:res.wins}},(err,res) => {
-                if (err) throw err;
-            });
         });
     });
 };
