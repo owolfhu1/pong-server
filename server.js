@@ -97,7 +97,7 @@ io.on('connection', socket => {
 
     socket.on('register', data => {
         if (!(new RegExp('^[a-zA-Z]{3,10}$').test(data.name)))
-            socket.emit('login_msg', 'invalid username, must be 3-10 letters only');
+            socket.emit('login_msg', {msg:'invalid username, must be 3-10 letters only',color:'red'});
         else {
             data.pass = hash(data.pass);
             Database.register(data.name, data.pass, result => socket.emit('register', result));
@@ -106,7 +106,7 @@ io.on('connection', socket => {
 
     socket.on('login', data => {
         if (data.name in userMap)
-            socket.emit('login_msg', data.name + ' is already logged in');
+            socket.emit('login_msg', {msg:data.name + ' is already logged in',color:'red'});
         else {
             data.pass = hash(data.pass);
             Database.login(data.name, data.pass, bool => {
@@ -118,7 +118,7 @@ io.on('connection', socket => {
                     for (let i in lobby)
                         io.to(userMap[lobby[i]]).emit('lobby', lobby);
                 } else
-                    socket.emit('login_msg', 'Bad login data provided.');
+                    socket.emit('login_msg', {msg:'Bad login data provided.',color:'red'});
             });
         }
     });
