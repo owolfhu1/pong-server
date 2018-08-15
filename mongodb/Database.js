@@ -120,5 +120,5 @@ const recordGame = (winner,loser) => {
     });
 };
 
-module.exports = {login,register,updateScores,topThree,getMyScore,recordGame,getHighScores};
+module.exports = {login,register,updateScores,recordGame,getHighScores};
 
