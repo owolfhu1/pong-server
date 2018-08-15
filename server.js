@@ -7,7 +7,7 @@ const server = http.createServer(app);
 const io = socketIO(server);
 
 const Game = require('./Game');
-const Users = require('./mongodb/users');
+const Database = require('./mongodb/Database');
 
 const userMap = {}; //{username : socketId}
 const lobby = []; //[userInLobby,secondUserInLobby, ...]
@@ -25,7 +25,7 @@ function GameObj(game,leftPlayer,rightPlayer) {
 }
 
 const updateScores = (winner,loser) => {
-    Users.updateScores(winner,loser, scores => {
+    Database.updateScores(winner,loser, scores => {
         let msg1 = `SYSTEM: ${winner} has defeated ${loser}.`;
         let msg2 = `${winner}'s new score is ${scores.winner}`;
         let msg3 = `${loser}'s new score is ${scores.loser}`;
@@ -35,7 +35,7 @@ const updateScores = (winner,loser) => {
             io.to(userMap[lobby[i]]).emit('chat', msg3);
         }
     });
-    Users.recordGame(winner,loser);
+    Database.recordGame(winner,loser);
 };
 
 const makeGame = (leftPlayer,rightPlayer) => {
@@ -100,7 +100,7 @@ io.on('connection', socket => {
             socket.emit('login_msg', 'invalid username, must be 3-10 letters only');
         else {
             data.pass = hash(data.pass);
-            Users.register(data.name, data.pass, result => socket.emit('register', result));
+            Database.register(data.name, data.pass, result => socket.emit('register', result));
         }
     });
 
@@ -109,7 +109,7 @@ io.on('connection', socket => {
             socket.emit('login_msg', data.name + ' is already logged in');
         else {
             data.pass = hash(data.pass);
-            Users.login(data.name, data.pass, bool => {
+            Database.login(data.name, data.pass, bool => {
                 if (bool) {
                     userMap[data.name] = socket.id;
                     lobby.push(data.name);
@@ -131,16 +131,8 @@ io.on('connection', socket => {
     
     socket.on('chat', text => {
         if (username) {
-            if (text === '/topThree')
-                Users.topThree(msgs => {
-                    socket.emit('chat', msgs.one);
-                    if (msgs.two) socket.emit('chat', msgs.two);
-                    if (msgs.three) socket.emit('chat', msgs.three);
-                });
-            else if (text === '/myScore')
-                Users.getMyScore(username, msg => socket.emit('chat', msg));
-            else for (let i in lobby)
-                    io.to(userMap[lobby[i]]).emit('chat', username + ': ' + text);
+            for (let i in lobby)
+                io.to(userMap[lobby[i]]).emit('chat', username + ': ' + text);
         }
     });
     
@@ -178,6 +170,8 @@ io.on('connection', socket => {
                 startGame(gameObj);
         }
     });
+    
+    socket.on('get_scores', () => Database.getHighScores(scores => socket.emit('scores', scores)));
 
     socket.on('disconnect', () => {
         if (username) {
@@ -187,10 +181,6 @@ io.on('connection', socket => {
                 gameObj.game.stop();
                 if (gameObj.interval)
                     clearInterval(gameObj.interval);
-                //io.to(userMap[gameObj.leftPlayer]).emit('login', {username:gameObj.leftPlayer, lobby, state:'lobby'});
-                //io.to(userMap[gameObj.rightPlayer]).emit('login', {username:gameObj.rightPlayer, lobby, state:'lobby'});
-                //lobby.push(gameObj.leftPlayer);
-                //lobby.push(gameObj.rightPlayer);
                 if (gameObj.leftPlayer === username)
                     updateScores(gameObj.rightPlayer,gameObj.leftPlayer);
                 else updateScores(gameObj.leftPlayer,gameObj.rightPlayer);
