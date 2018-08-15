@@ -67,7 +67,7 @@ function Game(callback) {
             state.y = 400 + state.direction.y;
         }
         if (state.x < 0) {
-            if (state.y < state.left - 10 || state.y > state.left + 111)
+            if (state.y < state.left - 13 || state.y > state.left + 114)
                 this.stop('left');
             else {
                 let spot = state.y - state.left;
@@ -76,7 +76,7 @@ function Game(callback) {
             }
         }
         if (state.x > 600) {
-            if (state.y < state.right - 10 || state.y > state.right + 111)
+            if (state.y < state.right - 13 || state.y > state.right + 114)
                 this.stop('right');
             else {
                 let spot = state.y - state.right;
