@@ -10,9 +10,23 @@ const Game = require('./Game');
 const Database = require('./mongodb/Database');
 
 const userMap = {}; //{username : socketId}
-const lobby = []; //[userInLobby,secondUserInLobby, ...]
+const lobby = []; //[userInLobby,secondUserInLobby, ... ]
 const gameMap = {}; //{gameId : gameObj}
 const gameIdMap = {}; //{username : gameId}
+const observerMap = {};//{username : gameId}
+
+const gamesForLobby = () => {
+    let map = {};
+    for (let id in gameMap) {
+        let obj = {};
+        let game = gameMap[id];
+        obj.id = game.id;
+        obj.rightPlayer = game.rightPlayer;
+        obj.leftPlayer = game.leftPlayer;
+        map[obj.id] = obj;
+    }
+    return map;
+};
 
 function GameObj(game,leftPlayer,rightPlayer) {
     this.game = game;
@@ -20,6 +34,7 @@ function GameObj(game,leftPlayer,rightPlayer) {
     this.rightPlayer = rightPlayer;
     this.id = 'gameId' + Math.random().toString(36).substr(2, 6);
     this.interval = null;
+    this.observers = [];
     io.to(userMap[leftPlayer]).emit('start_game');
     io.to(userMap[rightPlayer]).emit('start_game');
 }
@@ -46,11 +61,22 @@ const makeGame = (leftPlayer,rightPlayer) => {
         io.to(userMap[rightPlayer]).emit('login', {username:rightPlayer, lobby, state:'lobby'});
         lobby.push(leftPlayer);
         lobby.push(rightPlayer);
-        for (let i in lobby)
-            io.to(userMap[lobby[i]]).emit('lobby', lobby);
+        if (gameObj.observers)
+            for (let o in gameObj.observers) {
+                let observer = gameObj.observers[o];
+                delete observerMap[observer];
+                lobby.push(observer);
+            }
         delete gameIdMap[leftPlayer];
         delete gameIdMap[rightPlayer];
         delete gameMap[gameObj.id];
+        if (gameObj.observers)
+            for (let o in gameObj.observers) {
+                let name = gameObj.observers[o];
+                io.to(userMap[name]).emit('login', {username:name, lobby, state:'lobby'});
+            }
+        for (let i in lobby)
+            io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
         if (who === 'left')
             updateScores(rightPlayer,leftPlayer);
         else updateScores(leftPlayer,rightPlayer);
@@ -62,7 +88,7 @@ const makeGame = (leftPlayer,rightPlayer) => {
     lobby.splice(lobby.indexOf(leftPlayer),1);
     lobby.splice(lobby.indexOf(rightPlayer),1);
     for (let i in lobby)
-        io.to(userMap[lobby[i]]).emit('lobby', lobby);
+        io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
 };
 
 const startGame = gameObj => {
@@ -70,9 +96,13 @@ const startGame = gameObj => {
     io.to(userMap[gameObj.rightPlayer]).emit('start_game');
     gameObj.game.start();
     gameObj.interval = setInterval(() => {
-        io.to(userMap[gameObj.leftPlayer]).emit('update_game',gameObj.game.getState());
-        io.to(userMap[gameObj.rightPlayer]).emit('update_game',gameObj.game.getState());
-    },1);
+        let state = gameObj.game.getState();
+        io.to(userMap[gameObj.leftPlayer]).emit('update_game',state);
+        io.to(userMap[gameObj.rightPlayer]).emit('update_game',state);
+        if (gameObj.observers)
+            for (let o in gameObj.observers)
+                io.to(userMap[gameObj.observers[o]]).emit('update_game',state);
+    },10);
 };
 
 const hash = s => {
@@ -116,7 +146,7 @@ io.on('connection', socket => {
                     username = data.name;
                     socket.emit('login', {username,lobby,state:'lobby'});
                     for (let i in lobby)
-                        io.to(userMap[lobby[i]]).emit('lobby', lobby);
+                        io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
                 } else
                     socket.emit('login_msg', {msg:'Bad login data provided.',color:'red'});
             });
@@ -172,9 +202,32 @@ io.on('connection', socket => {
     });
     
     socket.on('get_scores', () => Database.getHighScores(scores => socket.emit('scores', scores)));
-
+    
+    socket.on('observe', gameId => {
+        if (gameId in gameMap) {
+            observerMap[username] = gameId;
+            let gameObj = gameMap[gameId];
+            socket.emit('observe', {
+                left : gameObj.leftPlayer,
+                right : gameObj.rightPlayer,
+            });
+            if (!gameObj.observers)
+                gameObj.observers = [];
+            gameObj.observers.push(username);
+            let index = lobby.indexOf(username);
+            if (index !== -1) {
+                lobby.splice(index,1);
+                for (let i in lobby)
+                    io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
+            }
+        }
+    });
+    
     socket.on('disconnect', () => {
         if (username) {
+            if (username in observerMap)
+                gameMap[observerMap[username]].observers
+                    .splice(gameMap[observerMap[username]].observers.indexOf(username));
             delete userMap[username];
             if (username in gameIdMap) {
                 let gameObj = gameMap[gameIdMap[username]];
@@ -192,10 +245,12 @@ io.on('connection', socket => {
             if (index !== -1) {
                 lobby.splice(index,1);
                 for (let i in lobby)
-                    io.to(userMap[lobby[i]]).emit('lobby', lobby);
+                    io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
             }
         }
     });
+    
+
 
 });
 
