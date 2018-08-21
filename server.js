@@ -7,6 +7,7 @@ const server = http.createServer(app);
 const io = socketIO(server);
 
 const Game = require('./Game');
+const SoloGame = require('./SoloGame');
 const Database = require('./mongodb/Database');
 
 const userMap = {}; //{username : socketId}
@@ -53,6 +54,37 @@ const updateScores = (winner,loser) => {
     Database.recordGame(winner,loser);
 };
 
+const makeSoloGame = player => {
+    let game = new SoloGame( who => {
+        let gameObj = gameMap[gameIdMap[player]];
+        clearInterval(gameObj.interval);
+        io.to(userMap[player]).emit('login', {username:player, lobby, state:'lobby'});
+        lobby.push(player);
+        if (gameObj.observers)
+            for (let o in gameObj.observers) {
+                let observer = gameObj.observers[o];
+                delete observerMap[observer];
+                lobby.push(observer);
+            }
+        delete gameIdMap[player];
+        delete gameMap[gameObj.id];
+        if (gameObj.observers)
+            for (let o in gameObj.observers) {
+                let name = gameObj.observers[o];
+                io.to(userMap[name]).emit('login', {username:name, lobby, state:'lobby'});
+            }
+        for (let i in lobby)
+            io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
+        
+    });
+    let gameObj = new GameObj(game,player,'COMPUTER');
+    gameIdMap[player] = gameObj.id;
+    gameMap[gameObj.id] = gameObj;
+    lobby.splice(lobby.indexOf(player),1);
+    for (let i in lobby)
+        io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
+};
+
 const makeGame = (leftPlayer,rightPlayer) => {
     let game = new Game(who => {
         let gameObj = gameMap[gameIdMap[leftPlayer]];
@@ -91,6 +123,18 @@ const makeGame = (leftPlayer,rightPlayer) => {
         io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
 };
 
+const startSoloGame = gameObj => {
+    io.to(userMap[gameObj.leftPlayer]).emit('start_game');
+    gameObj.game.start();
+    gameObj.interval = setInterval(() => {
+        let state = gameObj.game.getState();
+        io.to(userMap[gameObj.leftPlayer]).emit('update_game',state);
+        if (gameObj.observers)
+            for (let o in gameObj.observers)
+                io.to(userMap[gameObj.observers[o]]).emit('update_game',state);
+    },10);
+};
+
 const startGame = gameObj => {
     io.to(userMap[gameObj.leftPlayer]).emit('start_game');
     io.to(userMap[gameObj.rightPlayer]).emit('start_game');
@@ -122,9 +166,9 @@ const hash = s => {
 };
 
 io.on('connection', socket => {
-
+    
     let username = '';
-
+    
     socket.on('register', data => {
         if (!(new RegExp('^[a-zA-Z]{3,10}$').test(data.name)))
             socket.emit('login_msg', {msg:'invalid username, must be 3-10 letters only',color:'red'});
@@ -133,7 +177,7 @@ io.on('connection', socket => {
             Database.register(data.name, data.pass, result => socket.emit('register', result));
         }
     });
-
+    
     socket.on('login', data => {
         if (data.name in userMap)
             socket.emit('login_msg', {msg:data.name + ' is already logged in',color:'red'});
@@ -174,13 +218,22 @@ io.on('connection', socket => {
         }
     });
     
+    socket.on('solo', () => {
+        if (username) {
+            makeSoloGame(username);
+            let gameObj = gameMap[gameIdMap[username]];
+            if (!gameObj.interval)
+                startGame(gameObj);
+        }
+    });
+    
     socket.on('decline', name => {
         if (username) {
             if (lobby.indexOf(name) !== -1)
                 io.to(userMap[name]).emit('chat', `SYSTEM: ${username} has declined your invitation.`);
         }
     });
-
+    
     socket.on('move_paddle', string => {
         if (username) {
             let gameObj = gameMap[gameIdMap[username]];
@@ -250,8 +303,6 @@ io.on('connection', socket => {
         }
     });
     
-
-
 });
 
 server.listen(port, () => console.log(`Listening on port ${port}`));
