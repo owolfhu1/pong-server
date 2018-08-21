@@ -75,7 +75,9 @@ const makeSoloGame = player => {
             }
         for (let i in lobby)
             io.to(userMap[lobby[i]]).emit('lobby', {lobby,gameMap:gamesForLobby()});
-        
+        if (who === 'left')
+            updateScores('COMPUTER',player);
+        else updateScores(player,'COMPUTER');
     });
     let gameObj = new GameObj(game,player,'COMPUTER');
     gameIdMap[player] = gameObj.id;
